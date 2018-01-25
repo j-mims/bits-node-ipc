@@ -7,7 +7,7 @@ directly send and receive BITS events, requests, and responses.
 # Installation
 
 
-    git clone https://github.com/Axios-Engineering/bits-node-ipc.git
+    git clone https://github.com/LGSInnovations/bits-node-ipc.git
     cd bits-node-ipc
     npm install
     ln -s $PWD $BITS_HOME/data/base/modules/modules/bits-node-ipc
