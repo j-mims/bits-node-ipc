@@ -16,11 +16,11 @@ limitations under the License.
 
 (() => {
   'use strict';
-    
+
   const EventEmitter = require('events');
   const fs = require('fs');
   const ipc = require('node-ipc');
-  const logger = global.helper.LoggerFactory.getLogger();
+  const logger = global.LoggerFactory.getLogger();
 
   const Messenger = global.helper.Messenger;
 
@@ -75,7 +75,7 @@ limitations under the License.
         responseEmitter.emit(msg.event, msg.responseId, msg.err, msg.params);
       } else if (msg.type === "addEventListener") {
         let scope = msg.params[0];
-        let listener = (...data) => { 
+        let listener = (...data) => {
           if (!socket.destroyed) {
             // if the socket is still active, sent the event
             ipc.server.emit(
@@ -95,7 +95,7 @@ limitations under the License.
         messageCenter.addEventListener(msg.event, scope, listener);
       } else if (msg.type === "addRequestListener") {
         let scope = msg.params[0];
-        let listener = (metadata, ...data) => { 
+        let listener = (metadata, ...data) => {
           if (!socket.destroyed) {
             // if the socket is still active, sent the event
             ipc.server.emit(
@@ -151,16 +151,16 @@ limitations under the License.
       ipc.server.on('start', () => {
         logger.info(`IPC server started at ${socketPath}`);
       });
-      
+
       // Handle incoming messages from clients
       ipc.server.on('bits-ipc', (msg, socket) => {
         if (!msg) {
           logger.warn('Received empty IPC message');
           return;
         }
-        
+
         logger.debug('Received IPC message', msg);
- 
+
         if (msg && validMessageTypes.includes(msg.type)) {
           handleIpcMessage(messageCenter, socket, msg);
         } else {
