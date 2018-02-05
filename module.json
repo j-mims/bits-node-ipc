@@ -8,11 +8,8 @@
   "displayName": "Node IPC",
   "name": "bits-node-ipc",
   "appDir": "app",
-  "contentImport": "/elements/bits/node-ipc-app/bits-node-ipc-app.html",
-  "contentElement": "bits-node-ipc-app",
   "version": "",
   "dependencies": {
     "bits-base": "^2.0.0"
-  },
-  "icon": "communication:import-export"
+  }
 }
