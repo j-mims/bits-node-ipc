@@ -7,8 +7,6 @@
   "displayName": "Node IPC",
   "name": "node-ipc",
   "appDir": "app",
-  "contentElement": "bits-node-ipc-app",
-  "contentImport": "/elements/bits-node-ipc-app/bits-node-ipc-app.html",
   "version": "",
   "dependencies": {
     "bits-base": "^2.0.0"
