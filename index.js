@@ -18,11 +18,9 @@ limitations under the License.
   'use strict';
 
   const EventEmitter = require('events');
-  const fs = require('fs');
   const ipc = require('node-ipc');
   const logger = global.LoggerFactory.getLogger();
 
-  const Messenger = global.helper.Messenger;
 
   // see MessageCenter._messageHandler
   const validMessageTypes = [
@@ -39,7 +37,6 @@ limitations under the License.
     'removeEventSubscriberListener'
   ];
 
-  let pendingRequests = {};
   let responseEmitter = new EventEmitter();
 
   function handleIpcMessage(messageCenter, socket, msg) {
