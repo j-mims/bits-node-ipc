@@ -4,7 +4,7 @@ This module used the node-ipc module to provide a binding between the BITS
 MessageCenter and external applications.  This allows external processes to
 directly send and receive BITS events, requests, and responses.
 
-# Installation
+## Installation
 
 
     git clone https://github.com/LGSInnovations/bits-node-ipc.git
@@ -12,7 +12,7 @@ directly send and receive BITS events, requests, and responses.
     npm install
     ln -s $PWD $BITS_HOME/data/base/modules/modules/bits-node-ipc
 
-# C++ Client
+## C++ Client
 
 The client folder contains an example C++11 application and the MesageCenter
 header file.
