@@ -1,19 +1,24 @@
 {
-    "name": "bits-node-ipc",
-    "version": "1.0.0",
-    "dependencies": {
-        "node-ipc": "^9.1.1"
-    },
-    "module-dependencies": {
-        "bits": "^2.0.0"
-    },
-    "appDir": "app/",
-    "contentElement": "bits-node-ipc-app",
-    "contentImport": "/elements/bits-node-ipc-app/bits-node-ipc-app.html",
-    "scopes": [
-      {"name": "public", "displayName": "Public"}
-    ],
-    "displayName": "Node IPC",
-    "icon": "communication:import-export",
-    "category": "Utilities"
+  "name": "bits-node-ipc",
+  "version": "1.0.0",
+  "description": "Bits Integrated Technology System",
+  "author": "LGS Innovations",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/LGSInnovations/bits-node-ipc/issues"
+  },
+  "homepage": "https://github.com/LGSInnovations/bits-node-ipc#readme",
+  "scripts": {
+    "bits:install": "yarn --prod",
+    "lint": "eslint --ext js,html --fix ./",
+    "build": "yarn && npm run lint"
+  },
+  "devDependencies": {
+    "eslint": "^4.8.0",
+    "eslint-plugin-html": "^3.2.2",
+    "eslint-config-google": "^0.9.1"
+  },
+  "dependencies": {
+    "node-ipc": "^9.1.1"
+  }
 }

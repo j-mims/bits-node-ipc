@@ -44,10 +44,10 @@ limitations under the License.
 
   function handleIpcMessage(messageCenter, socket, msg) {
     try {
-      if (msg.type === "event") {
+      if (msg.type === 'event') {
         // Events are easy, just forward them to the BITS message center
         messageCenter.sendEvent(msg.event, ...msg.params);
-      } else if (msg.type === "request") {
+      } else if (msg.type === 'request') {
         // For requests we pass the request to the BITS message center
         // tied to a callback with this socket.  When the BITS
         // response comes back we forward it to IPC
@@ -68,12 +68,12 @@ limitations under the License.
         .catch((err) => {
           logger.error('error on request', err);
         });
-      } else if (msg.type === "response") {
+      } else if (msg.type === 'response') {
         // For requests we pass the request to the BITS message center
         // tied to a callback with this socket.  When the BITS
         // response comes back we forward it to IPC
         responseEmitter.emit(msg.event, msg.responseId, msg.err, msg.params);
-      } else if (msg.type === "addEventListener") {
+      } else if (msg.type === 'addEventListener') {
         let scope = msg.params[0];
         let listener = (...data) => {
           if (!socket.destroyed) {
@@ -91,9 +91,9 @@ limitations under the License.
             // otherwise remove this listener
             messageCenter.removeEventListener(msg.event, listener);
           }
-        }
+        };
         messageCenter.addEventListener(msg.event, scope, listener);
-      } else if (msg.type === "addRequestListener") {
+      } else if (msg.type === 'addRequestListener') {
         let scope = msg.params[0];
         let listener = (metadata, ...data) => {
           if (!socket.destroyed) {
@@ -122,7 +122,6 @@ limitations under the License.
                 }
               };
               responseEmitter.on(msg.event, handleIpcResponse);
-
             });
 
             return responsePromise;
@@ -131,7 +130,7 @@ limitations under the License.
             messageCenter.removeRequestListener(msg.event, listener);
             return Promise.resolve();
           }
-        }
+        };
         messageCenter.addRequestListener(msg.event, scope, listener);
       }
     } catch (err) {
@@ -144,7 +143,7 @@ limitations under the License.
     return messageCenter.sendRequest('base#System bitsId')
     .then((systemId) => {
       // create the socket path
-      const socketPath = ipc.config.socketRoot + "bits." + systemId;
+      const socketPath = ipc.config.socketRoot + 'bits.' + systemId;
 
       // setup the server
       ipc.serve(socketPath);
@@ -172,16 +171,15 @@ limitations under the License.
       ipc.server.start();
     })
     .catch((err) => {
-      console.error("Failed to get the BITS system id:", err);
+      console.error('Failed to get the BITS system id:', err);
     });
   }
 
   class ModuleApp {
-
     constructor() {
       this._messenger = new global.helper.Messenger();
       this._messenger.addEventListener('bits-ipc#Client connected', {scopes: null}, (name) => {
-        logger.info("IPC client connected");
+        logger.info('IPC client connected');
       });
     }
 
@@ -194,12 +192,14 @@ limitations under the License.
 
     startHeartbeat(messageCenter) {
       setInterval(() => {
-        messageCenter.sendEvent('bits-ipc#heartbeat', {scopes: null}, Date.now())
+        messageCenter.sendEvent('bits-ipc#heartbeat', {scopes: null}, Date.now());
         messageCenter.sendRequest('bits-ipc#ping', {scopes: null}, Date.now())
         .then((result) => {
           // TODO update a watchdog?
         })
-        .catch((err) => { console.log(err) });
+        .catch((err) => {
+          console.log(err);
+        });
       }, 1000);
     }
 
@@ -211,5 +211,4 @@ limitations under the License.
   }
 
   module.exports = new ModuleApp();
-
 })();
