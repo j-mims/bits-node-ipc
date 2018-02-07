@@ -144,6 +144,7 @@ limitations under the License.
       const socketPath = ipc.config.socketRoot + 'bits.' + systemId;
 
       // setup the server
+      ipc.config.silent = true;
       ipc.serve(socketPath);
       ipc.server.on('start', () => {
         logger.info(`IPC server started at ${socketPath}`);
