@@ -155,7 +155,7 @@ limitations under the License.
           return;
         }
 
-        logger.debug('Received IPC message', msg);
+        logger.silly('Received IPC message', msg);
 
         if (msg && validMessageTypes.includes(msg.type)) {
           handleIpcMessage(messageCenter, socket, msg);
@@ -168,7 +168,7 @@ limitations under the License.
       ipc.server.start();
     })
     .catch((err) => {
-      console.error('Failed to get the BITS system id:', err);
+      logger.error('Failed to get the BITS system id:', err);
     });
   }
 
@@ -181,7 +181,6 @@ limitations under the License.
     }
 
     load(messageCenter) {
-      console.log('Loading Node IPC');
       return startIpcServer(messageCenter)
       .then(() => this._messenger.load(messageCenter))
       .then(() => this.startHeartbeat(messageCenter));
@@ -195,13 +194,12 @@ limitations under the License.
           // TODO update a watchdog?
         })
         .catch((err) => {
-          console.log(err);
+          logger.silly('Failed to start heartbeat', err);
         });
       }, 1000);
     }
 
     unload() {
-      console.log('Unloading Node IPC');
       return Promise.resolve()
       .then(() => this._messenger.unload());
     }
