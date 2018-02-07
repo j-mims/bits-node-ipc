@@ -17,10 +17,11 @@ limitations under the License.
 (() => {
   'use strict';
 
+  const REQUEST_GET_SOCKET_PATH = 'bits-node-ipc#GetSocketPath';
+
   const EventEmitter = require('events');
   const ipc = require('node-ipc');
   const logger = global.LoggerFactory.getLogger();
-
 
   // see MessageCenter._messageHandler
   const validMessageTypes = [
@@ -166,22 +167,30 @@ limitations under the License.
 
       // start the server
       ipc.server.start();
+      return socketPath;
     })
     .catch((err) => {
       logger.error('Failed to get the BITS system id:', err);
+      return null;
     });
   }
 
   class ModuleApp {
     constructor() {
+      this._socketPath = null;
       this._messenger = new global.helper.Messenger();
       this._messenger.addEventListener('bits-ipc#Client connected', {scopes: null}, (name) => {
         logger.info('IPC client connected');
       });
+      this._messenger.addRequestListener(REQUEST_GET_SOCKET_PATH, {scopes: null}, () => Promise.resolve(this._socketPath));
     }
 
     load(messageCenter) {
-      return startIpcServer(messageCenter)
+      return Promise.resolve()
+      .then(() => startIpcServer(messageCenter))
+      .then((socketPath) => {
+        this._socketPath = socketPath;
+      })
       .then(() => this._messenger.load(messageCenter))
       .then(() => this.startHeartbeat(messageCenter));
     }
