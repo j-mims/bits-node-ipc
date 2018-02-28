@@ -140,12 +140,42 @@ limitations under the License.
   function startIpcServer(messageCenter) {
     return messageCenter.sendRequest('base#System bitsId')
     .then((systemId) => {
-      // create the socket path
-      const socketPath = ipc.config.socketRoot + 'bits.' + systemId;
+        // setup the server
+        var socketPath;
+        ipc.config.silent = true;
+        if (process.env.BITS_NODE_IPC_SOCKET_TYPE)
+        {
+            if( process.env.BITS_NODE_IPC_SOCKET_TYPE === 'tcp' )
+            {
+                if( process.env.BITS_NODE_IPC_SOCKET_PORT )
+                {
+                    ipc.config.networkHost = '0.0.0.0';
+                    ipc.config.networkPort = process.env.BITS_NODE_IPC_SOCKET_PORT;
+                    socketPath = `${ipc.config.networkHost}:${ipc.config.networkPort}`;
+                    ipc.serveNet();
+                }
+                else
+                {
+                    logger.error('TCP port variable cannot be found, have you correct set the BITS_NODE_IPC_SOCKET_PORT environment variable?');
+                }
+            }
+            else if( process.env.BITS_NODE_IPC_SOCKET_TYPE === 'unix' )
+            {
+                socketPath = ipc.config.socketRoot + 'bits.' + systemId;
+                ipc.serve(socketPath);
+            }
+            else
+            {
+                logger.error('BITS_NODE_IPC_SOCKET_TYPE is not supported.');
+            }
+        }
+        else
+        {
+            // Default to Unix Socket
+            socketPath = ipc.config.socketRoot + 'bits.' + systemId;
+            ipc.serve(socketPath);
+        }
 
-      // setup the server
-      ipc.config.silent = true;
-      ipc.serve(socketPath);
       ipc.server.on('start', () => {
         logger.info(`IPC server started at ${socketPath}`);
       });
