@@ -40,15 +40,44 @@ limitations under the License.
 
   let responseEmitter = new EventEmitter();
 
+  // List of event listeners that have been registered with the
+  // MessageCenter on behalf of an IPC client socket.
+  let eventListeners = [];
+
+  // List of request listeners that have been registered with the
+  // MessageCenter on behalf of an IPC client socket.
+  let requestListeners = [];
+
+  // Primary handler for responding to incoming message from an IPC
+  // client socket. There are five message types that are expected:
+  //
+  // event              - The IPC client wants to send an event to the
+  //                      MessageCenter
+  // request            - The IPC client wants to send a request to the
+  //                      MessageCenter
+  // response           - The IPC client is sending a response due to a request
+  //                      received from the MessageCenter
+  // addEventListener   - The IPC client wants to receive events from the
+  //                      MessageCenter
+  // addRequestListener - The IPC client wants to receive requests from the
+  //                      MessageCenter
+  //
+  // IMPORTANT: if there are multiple IPC clients connected to the socket, only
+  // one of them can register with the request listener.
   function handleIpcMessage(messageCenter, socket, msg) {
     try {
+      ////////////////////////////////////////////////////////////////////////
+      // event
       if (msg.type === 'event') {
-        // Events are easy, just forward them to the BITS message center
+        // Incoming events are easy, just forward them to the BITS message center
         messageCenter.sendEvent(msg.event, ...msg.params);
+
+      ////////////////////////////////////////////////////////////////////////
+      // request
       } else if (msg.type === 'request') {
-        // For requests we pass the request to the BITS message center
-        // tied to a callback with this socket.  When the BITS
-        // response comes back we forward it to IPC
+        // For incoming requests we pass the request to the BITS message center
+        // tied to a callback with this socket.  When the BITS response comes
+        // back we forward it to IPC
         messageCenter.sendRequest(msg.event, ...msg.params)
         .then((...data) => {
           ipc.server.emit(
@@ -66,12 +95,29 @@ limitations under the License.
         .catch((err) => {
           logger.error('error on request', err);
         });
+
+      ////////////////////////////////////////////////////////////////////////
+      // response
       } else if (msg.type === 'response') {
-        // For requests we pass the request to the BITS message center
-        // tied to a callback with this socket.  When the BITS
-        // response comes back we forward it to IPC
+        // For outoing responses we simply pass to the IPC
         responseEmitter.emit(msg.event, msg.responseId, msg.err, msg.params);
+
+      ////////////////////////////////////////////////////////////////////////
+      // addEventListener
       } else if (msg.type === 'addEventListener') {
+
+        // First see if we have already registered this request event for
+        // this socket only, if so this is a duplicate and we can ignore it
+        for (let i=requestListeners.length-1; i >=0; --i) {
+          let rl = requestListeners[i];
+          if ((rl.event === msg.event) && (rl.socket === socket)) {
+            logger.warn(`ignoring duplicate addEventListener for ${msg.event}`);
+            return;
+          }
+        }
+
+        // When the IPC client wishes to be notified of events,
+        // create a listener bound to this socket
         let scope = msg.params[0];
         let listener = (...data) => {
           if (!socket.destroyed) {
@@ -90,8 +136,34 @@ limitations under the License.
             messageCenter.removeEventListener(msg.event, listener);
           }
         };
+
+        // Update the listener in our internal list
+        eventListeners.push({
+          event: msg.event,
+          scope: scope,
+          socket: socket,
+          listener: listener
+        });
+
+        // And finally register with the messageCenter
         messageCenter.addEventListener(msg.event, scope, listener);
+
+      ////////////////////////////////////////////////////////////////////////
+      // addRequestListener
       } else if (msg.type === 'addRequestListener') {
+        // First see if we have already registered this request listener
+        // for *any* socket; BITS message center has undefined behaviour
+        // if two listeners are registered for the same request
+        for (let i=requestListeners.length-1; i >=0; --i) {
+          let rl = requestListeners[i];
+          if (rl.event === msg.event) {
+            logger.warn(`removing previously registered request listener for ${msg.event}`);
+            messageCenter.removeRequestListener(msg.event, rl.listener);
+            requestListeners.splice(i, 1);
+          }
+        }
+
+        // Now create a new listener
         let scope = msg.params[0];
         let listener = (metadata, ...data) => {
           if (!socket.destroyed) {
@@ -129,6 +201,16 @@ limitations under the License.
             return Promise.resolve();
           }
         };
+
+        // Update the listener in our internal list
+        requestListeners.push({
+          event: msg.event,
+          scope: scope,
+          socket: socket,
+          listener: listener
+        });
+
+        // And finally register with the messageCenter
         messageCenter.addRequestListener(msg.event, scope, listener);
       }
     } catch (err) {
@@ -137,6 +219,7 @@ limitations under the License.
     }
   }
 
+  // Method to start the Ipc Server
   function startIpcServer(messageCenter) {
     return messageCenter.sendRequest('base#System bitsId')
     .then((systemId) => {
@@ -180,6 +263,33 @@ limitations under the License.
         logger.info(`IPC server started at ${socketPath}`);
       });
 
+      // Handler for new connections
+      ipc.server.on('connect', (socket) => {
+        logger.info('Received new connection on bits-node-ipc socket');
+      });
+
+      // Handler for disconnects
+      ipc.server.on('socket.disconnected', (socket) => {
+        logger.info('Received disconnect of bits-node-ipc socket');
+        for (let i=requestListeners.length-1; i >=0; --i) {
+          let rl = requestListeners[i];
+          if (rl.socket === socket) {
+            logger.silly(`removing registered request listener for ${rl.event}`);
+            messageCenter.removeRequestListener(rl.event, rl.listener);
+            requestListeners.splice(i, 1);
+          }
+        }
+
+        for (let i=eventListeners.length-1; i >=0; --i) {
+          let el = eventListeners[i];
+          if (el.socket === socket) {
+            logger.silly(`removing registered event listener for ${el.event}`);
+            messageCenter.removeRequestListener(el.event, el.listener);
+            eventListeners.splice(i, 1);
+          }
+        }
+      });
+
       // Handle incoming messages from clients
       ipc.server.on('bits-ipc', (msg, socket) => {
         if (!msg) {
@@ -206,6 +316,7 @@ limitations under the License.
     });
   }
 
+  // The ModuleApp
   class ModuleApp {
     constructor() {
       this._socketPath = null;
