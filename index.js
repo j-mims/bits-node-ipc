@@ -22,6 +22,9 @@ limitations under the License.
   const EventEmitter = require('events');
   const ipc = require('node-ipc');
   const logger = global.LoggerFactory.getLogger();
+  
+  const MIN_START = 0;
+  const MAX_START = Number.MAX_SAFE_INTEGER;
 
   // see MessageCenter._messageHandler
   const validMessageTypes = [
@@ -47,6 +50,9 @@ limitations under the License.
   // List of request listeners that have been registered with the
   // MessageCenter on behalf of an IPC client socket.
   let requestListeners = [];
+  
+  let socketStorage = [];
+  let listConnectedClients = [];
 
   // Primary handler for responding to incoming message from an IPC
   // client socket. There are five message types that are expected:
@@ -151,14 +157,23 @@ limitations under the License.
       ////////////////////////////////////////////////////////////////////////
       // addRequestListener
       } else if (msg.type === 'addRequestListener') {
+        let uniqueId;
+        for (let i=socketStorage.length-1; i >=0; --i) {
+          let ss = socketStorage[i];
+          if (ss['socket'] === socket) {
+            uniqueId = ss['id'];
+            break;
+          }
+        }
+        let uniqueMsgEvent = msg.event  + "?id=" + uniqueId;
         // First see if we have already registered this request listener
         // for *any* socket; BITS message center has undefined behaviour
         // if two listeners are registered for the same request
         for (let i=requestListeners.length-1; i >=0; --i) {
           let rl = requestListeners[i];
-          if (rl.event === msg.event) {
-            logger.warn(`removing previously registered request listener for ${msg.event}`);
-            messageCenter.removeRequestListener(msg.event, rl.listener);
+          if (rl.event === uniqueMsgEvent) {
+            logger.warn(`removing previously registered request listener for ${uniqueMsgEvent}`);
+            messageCenter.removeRequestListener(uniqueMsgEvent, rl.listener);
             requestListeners.splice(i, 1);
           }
         }
@@ -204,14 +219,14 @@ limitations under the License.
 
         // Update the listener in our internal list
         requestListeners.push({
-          event: msg.event,
+          event: uniqueMsgEvent,
           scope: scope,
           socket: socket,
           listener: listener
         });
-
+        
         // And finally register with the messageCenter
-        messageCenter.addRequestListener(msg.event, scope, listener);
+        messageCenter.addRequestListener(uniqueMsgEvent, scope, listener);   
       }
     } catch (err) {
       logger.warn('Failed to send IPC message', err);
@@ -266,11 +281,32 @@ limitations under the License.
       // Handler for new connections
       ipc.server.on('connect', (socket) => {
         logger.info('Received new connection on bits-node-ipc socket');
+        let uniqueId = Math.floor(Math.random() * (MAX_START - MIN_START + 1)) + MIN_START;
+        socketStorage.push( {socket: socket, id: uniqueId} );
+        // Send event to all clients
+        listConnectedClients.push(uniqueId);
+        messageCenter.sendEvent('bits-node-ipc#updateConnectedClients', {scopes: ['public']}, listConnectedClients);
       });
 
       // Handler for disconnects
       ipc.server.on('socket.disconnected', (socket) => {
         logger.info('Received disconnect of bits-node-ipc socket');
+        // Find uniqueId for this Socket
+        let uniqueId;
+        for (let i=socketStorage.length-1; i >=0; --i) {
+          let ss = socketStorage[i];
+          if( ss['socket'] === socket ) {
+              uniqueId = ss['id'];
+              // Remove Socket/ID from socketStorage array
+              socketStorage.splice(i,1);
+              // Remove ID from listConnectedClients array
+              let index = listConnectedClients.indexOf(uniqueId);
+              listConnectedClients.splice(index,1);
+              // Push listConnectedClients
+              messageCenter.sendEvent('bits-node-ipc#updateConnectedClients', {scopes: ['public']},listConnectedClients);
+              break;
+          }
+        }
         for (let i=requestListeners.length-1; i >=0; --i) {
           let rl = requestListeners[i];
           if (rl.socket === socket) {
@@ -325,6 +361,11 @@ limitations under the License.
         logger.info('IPC client connected');
       });
       this._messenger.addRequestListener(REQUEST_GET_SOCKET_PATH, {scopes: null}, () => Promise.resolve(this._socketPath));
+      this._messenger.addRequestListener('bits-node-ipc#getConnectedClients', {scopes: ['public']},
+        (metadata) => {
+          return listConnectedClients;
+        }
+      );
     }
 
     load(messageCenter) {
